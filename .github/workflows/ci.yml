@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - testing
-      - main
 
 jobs:
   build-test-push:
@@ -20,36 +19,62 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U postgres"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.9"
+          python-version: '3.9'
 
+      # Customer Service 
+      - name: Install dependencies (customer_service)
+        run: |
+          cd backend/customer_service
+          pip install -r requirements.txt
+          pip install pytest
+      - name: Run tests (customer_service)
+        run: |
+          cd backend/customer_service
+          pytest -v
+
+      #  Order Service 
       - name: Install dependencies (order_service)
         run: |
           cd backend/order_service
           pip install -r requirements.txt
-
+          pip install pytest
       - name: Run tests (order_service)
         run: |
           cd backend/order_service
           pytest -v
 
+      # Product Service 
+      - name: Install dependencies (product_service)
+        run: |
+          cd backend/product_service
+          pip install -r requirements.txt
+          pip install pytest
+      - name: Run tests (product_service)
+        run: |
+          cd backend/product_service
+          pytest -v
+
+      # Azure Login 
       - name: Azure Login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      #  Build & Push Docker 
       - name: Build and Push Docker image
         run: |
-          echo "${{ secrets.ACR_PASSWORD }}" | docker login ${{ secrets.ACR_LOGIN_SERVER }} -u ${{ secrets.ACR_USERNAME }} --password-stdin
-          docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/order-service:${{ github.sha }} ./backend/order_service
-          docker push ${{ secrets.ACR_LOGIN_SERVER }}/order-service:${{ github.sha }}
+          az acr login --name ${{ secrets.ACR_LOGIN_SERVER }}
+          docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/order_service:latest ./backend/order_service
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/order_service:latest
