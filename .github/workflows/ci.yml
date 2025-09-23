@@ -80,8 +80,22 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       # Build & Push Docker 
-      - name: Build and Push Docker image
+      - name: Build and Push Docker image (order_service)
         run: |
           az acr login --name jaykumaracr722
-          docker build -t jaykumaracr722.azurecr.io/order_service:latest ./backend/order_service
-          docker push jaykumaracr722.azurecr.io/order_service:latest
+          docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/order_service:latest -f backend/order_service/Dockerfile ./backend/order_service
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/order_service:latest
+
+      - name: Build and Push Docker image (customer_service)
+        run: |
+         az acr login --name jaykumaracr722
+         docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/customer_service:latest -f backend/customer_service/Dockerfile ./backend/customer_service
+         docker push ${{ secrets.ACR_LOGIN_SERVER }}/customer_service:latest
+
+      
+      - name: Build and Push Docker image (product_service)
+        run: |
+         az acr login --name jaykumaracr722
+         docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/product_service:latest -f backend/product_service/Dockerfile ./backend/product_service
+         docker push ${{ secrets.ACR_LOGIN_SERVER }}/product_service:latest
+
