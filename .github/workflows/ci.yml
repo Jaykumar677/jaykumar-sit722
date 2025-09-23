@@ -99,3 +99,63 @@ jobs:
          docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/product_service:latest -f backend/product_service/Dockerfile ./backend/product_service
          docker push ${{ secrets.ACR_LOGIN_SERVER }}/product_service:latest
 
+
+# Stage 2: Deploy to Staging (ACI)
+  deploy-staging:
+    needs: build-test-push   
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy Order Service to Staging
+        run: |
+          az container create \
+            --resource-group sit722-prod-rg \
+            --name order-service-staging \
+            --image ${{ secrets.ACR_LOGIN_SERVER }}/order_service:latest \
+            --cpu 1 --memory 1 \
+            --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }} \
+            --ports 8000
+
+      - name: Deploy Customer Service to Staging
+        run: |
+          az container create \
+            --resource-group sit722-prod-rg \
+            --name customer-service-staging \
+            --image ${{ secrets.ACR_LOGIN_SERVER }}/customer_service:latest \
+            --cpu 1 --memory 1 \
+            --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }} \
+            --ports 8000
+
+      - name: Deploy Product Service to Staging
+        run: |
+          az container create \
+            --resource-group sit722-prod-rg \
+            --name product-service-staging \
+            --image ${{ secrets.ACR_LOGIN_SERVER }}/product_service:latest \
+            --cpu 1 --memory 1 \
+            --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }} \
+            --ports 8000
+
+      # quick health check
+      - name: Verify staging deployment
+        run: |
+          echo "Staging environment deployed. Run manual or automated tests here."
+
+      # Tear down staging after tests
+      - name: Destroy staging environment
+        if: always()
+        run: |
+          az container delete --resource-group sit722-prod-rg --name order-service-staging --yes
+          az container delete --resource-group sit722-prod-rg --name customer-service-staging --yes
+          az container delete --resource-group sit722-prod-rg --name product-service-staging --yes
