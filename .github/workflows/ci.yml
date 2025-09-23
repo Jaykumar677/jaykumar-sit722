@@ -98,6 +98,14 @@ jobs:
           docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/product_service:latest -f backend/product_service/Dockerfile ./backend/product_service
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/product_service:latest
 
+            # Build and Push Docker image (frontend)
+      - name: Build and Push Docker image (frontend)
+        run: |
+          az acr login --name jaykumaracr722
+          docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/frontend:latest -f frontend/Dockerfile ./frontend
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/frontend:latest
+
+
 
   # Stage 2: Deploy to Staging (ACI)
   deploy-staging:  
@@ -266,6 +274,27 @@ jobs:
             --dns-name-label product-service-prod-${{ github.run_id }} \
             --ip-address Public \
             --environment-variables DATABASE_URL=postgresql://postgres:postgres@postgres-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:5432/products
+      
+
+      # Deploy Frontend
+      - name: Deploy Frontend to Production
+        run: |
+          az container create \
+            --resource-group sit722-prod-rg \
+            --name frontend-prod \
+            --image ${{ secrets.ACR_LOGIN_SERVER }}/frontend:latest \
+            --cpu 1 --memory 1 \
+            --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }} \
+            --ports 80 \
+            --os-type Linux \
+            --dns-name-label frontend-prod-${{ github.run_id }} \
+            --ip-address Public \
+            --environment-variables \
+              CUSTOMER_API=http://customer-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000 \
+              ORDER_API=http://order-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000 \
+              PRODUCT_API=http://product-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000
 
       - name: Confirm Production Deployment
         run: |
@@ -273,3 +302,4 @@ jobs:
           echo "Order Service:    http://order-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000"
           echo "Customer Service: http://customer-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000"
           echo "Product Service:  http://product-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000"
+          echo "Frontend:  http://frontend-prod-${{ github.run_id }}.australiaeast.azurecontainer.io"
