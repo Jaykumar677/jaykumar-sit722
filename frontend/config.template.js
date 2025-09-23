@@ -1,0 +1,5 @@
+window._env_ = {
+  CUSTOMER_API: "$CUSTOMER_API",
+  ORDER_API: "$ORDER_API",
+  PRODUCT_API: "$PRODUCT_API"
+};
