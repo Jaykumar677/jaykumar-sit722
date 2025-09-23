@@ -8,77 +8,38 @@ jobs:
   build-test-push:
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        service: [customer_service, order_service, product_service]
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.9'
 
-      
-      # Customer Service
-      
-      - name: Install dependencies (customer_service)
-        run: pip install -r backend/customer_service/requirements.txt
-
-      - name: Run tests (customer_service)
-        run: pytest
-        working-directory: backend/customer_service
-
-      - name: Build Docker image (customer_service)
+      - name: Install dependencies
         run: |
-          IMAGE="${{ secrets.ACR_LOGIN_SERVER }}/customer_service:${{ github.sha }}"
-          docker build -t "$IMAGE" backend/customer_service
-          echo "CUSTOMER_IMAGE=$IMAGE" >> $GITHUB_ENV
+          pip install -r backend/${{ matrix.service }}/requirements.txt
+          pip install pytest
+        working-directory: ./ 
 
-      - name: Push Docker image (customer_service)
-        run: docker push ${{ env.CUSTOMER_IMAGE }}
-
-      
-      # Order Service
-      
-      - name: Install dependencies (order_service)
-        run: pip install -r backend/order_service/requirements.txt
-
-      - name: Run tests (order_service)
+      - name: Run tests
         run: pytest
-        working-directory: backend/order_service
+        working-directory: ./backend/${{ matrix.service }}
 
-      - name: Build Docker image (order_service)
-        run: |
-          IMAGE="${{ secrets.ACR_LOGIN_SERVER }}/order_service:${{ github.sha }}"
-          docker build -t "$IMAGE" backend/order_service
-          echo "ORDER_IMAGE=$IMAGE" >> $GITHUB_ENV
-
-      - name: Push Docker image (order_service)
-        run: docker push ${{ env.ORDER_IMAGE }}
-
-      
-      # Product Service
-      
-      - name: Install dependencies (product_service)
-        run: pip install -r backend/product_service/requirements.txt
-
-      - name: Run tests (product_service)
-        run: pytest
-        working-directory: backend/product_service
-
-      - name: Build Docker image (product_service)
-        run: |
-          IMAGE="${{ secrets.ACR_LOGIN_SERVER }}/product_service:${{ github.sha }}"
-          docker build -t "$IMAGE" backend/product_service
-          echo "PRODUCT_IMAGE=$IMAGE" >> $GITHUB_ENV
-
-      - name: Push Docker image (product_service)
-        run: docker push ${{ env.PRODUCT_IMAGE }}
-
-      # Login to ACR (done once)
-    
       - name: Login to ACR
         uses: azure/docker-login@v1
         with:
           login-server: ${{ secrets.ACR_LOGIN_SERVER }}
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build Docker image
+        run: |
+          IMAGE="${{ secrets.ACR_LOGIN_SERVER }}/${{ matrix.service }}:${{ github.sha }}"
+          docker build -t "$IMAGE" ./backend/${{ matrix.service }}
+          docker push "$IMAGE"
