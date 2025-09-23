@@ -122,6 +122,7 @@ jobs:
             --registry-username ${{ secrets.ACR_USERNAME }} \
             --registry-password ${{ secrets.ACR_PASSWORD }} \
             --ports 8000
+            --os-type Linux
 
       - name: Deploy Customer Service to Staging
         run: |
