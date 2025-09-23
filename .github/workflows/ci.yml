@@ -15,14 +15,13 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: testdb
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
 
     steps:
       - name: Checkout code
@@ -32,6 +31,14 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
+
+      - name: Create test databases
+        run: |
+          psql -h localhost -U postgres -c "CREATE DATABASE customers;"
+          psql -h localhost -U postgres -c "CREATE DATABASE orders;"
+          psql -h localhost -U postgres -c "CREATE DATABASE products;"
+        env:
+          PGPASSWORD: postgres
 
       # Customer Service 
       - name: Install dependencies (customer_service)
@@ -44,7 +51,7 @@ jobs:
           cd backend/customer_service
           pytest -v
 
-      #  Order Service 
+      # Order Service 
       - name: Install dependencies (order_service)
         run: |
           cd backend/order_service
@@ -72,9 +79,9 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      #  Build & Push Docker 
+      # Build & Push Docker 
       - name: Build and Push Docker image
         run: |
-          az acr login --name ${{ secrets.ACR_LOGIN_SERVER }}
-          docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/order_service:latest ./backend/order_service
-          docker push ${{ secrets.ACR_LOGIN_SERVER }}/order_service:latest
+          az acr login --name jaykumaracr722
+          docker build -t jaykumaracr722.azurecr.io/order_service:latest ./backend/order_service
+          docker push jaykumaracr722.azurecr.io/order_service:latest
