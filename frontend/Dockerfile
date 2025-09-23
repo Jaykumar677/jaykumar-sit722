@@ -1,21 +1,13 @@
-# Use a lightweight web server
 FROM nginx:alpine
 
-# Install envsubst for variable substitution
-RUN apk add --no-cache gettext
-
 # Copy frontend files
-COPY index.html /usr/share/nginx/html/
-COPY main.js /usr/share/nginx/html/
-COPY config.template.js /usr/share/nginx/html/config.template.js
+COPY . /usr/share/nginx/html
 
-# Add entrypoint script
+# Copy entrypoint script
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
-# Expose port 80
-EXPOSE 80
-
-# Run entrypoint before starting nginx
+# Make sure config.js is generated at container start
 ENTRYPOINT ["/docker-entrypoint.sh"]
+
 CMD ["nginx", "-g", "daemon off;"]
