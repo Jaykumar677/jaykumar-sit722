@@ -14,7 +14,6 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: testdb
         ports:
           - 5432:5432
         options: >-
@@ -23,51 +22,44 @@ jobs:
           --health-timeout=5s
           --health-retries=5
 
-    env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/testdb
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.9'
 
       - name: Install dependencies (customer_service)
         working-directory: ./backend/customer_service
         run: pip install -r requirements-dev.txt
 
-      - name: Run tests (customer_service)
-        working-directory: ./backend/customer_service
-        run: pytest -v
-
       - name: Install dependencies (order_service)
         working-directory: ./backend/order_service
         run: pip install -r requirements-dev.txt
-
-      - name: Run tests (order_service)
-        working-directory: ./backend/order_service
-        run: pytest -v
 
       - name: Install dependencies (product_service)
         working-directory: ./backend/product_service
         run: pip install -r requirements-dev.txt
 
+      # Create test databases
+      - name: Create test databases
+        run: |
+          psql -h localhost -U postgres -c "CREATE DATABASE customers;"
+          psql -h localhost -U postgres -c "CREATE DATABASE orders;"
+          psql -h localhost -U postgres -c "CREATE DATABASE products;"
+        env:
+          PGPASSWORD: postgres
+
+      - name: Run tests (customer_service)
+        working-directory: ./backend/customer_service
+        run: pytest -v
+
+      - name: Run tests (order_service)
+        working-directory: ./backend/order_service
+        run: pytest -v
+
       - name: Run tests (product_service)
         working-directory: ./backend/product_service
         run: pytest -v
-
-      - name: Login to ACR
-        uses: azure/docker-login@v1
-        with:
-          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
-
-      - name: Build and Push Docker image
-        run: |
-          IMAGE="${{ secrets.ACR_LOGIN_SERVER }}/sit722-app:${{ github.sha }}"
-          docker build -t "$IMAGE" .
-          docker push "$IMAGE"
