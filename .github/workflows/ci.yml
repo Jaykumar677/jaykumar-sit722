@@ -193,7 +193,7 @@ jobs:
             --registry-password ${{ secrets.ACR_PASSWORD }} \
             --ports 8000 \
             --os-type Linux \
-            --dns-name-label order-service-prod-${{ github.run_id }}
+            --dns-name-label order-service-prod-${{ github.run_id }} \
              --ip-address Public
 
       - name: Deploy Customer Service to Production
@@ -208,7 +208,7 @@ jobs:
             --registry-password ${{ secrets.ACR_PASSWORD }} \
             --ports 8000 \
             --os-type Linux \
-            --dns-name-label customer-service-prod-${{ github.run_id }}
+            --dns-name-label customer-service-prod-${{ github.run_id }} \
              --ip-address Public
 
       - name: Deploy Product Service to Production
@@ -223,7 +223,7 @@ jobs:
             --registry-password ${{ secrets.ACR_PASSWORD }} \
             --ports 8000 \
             --os-type Linux \
-            --dns-name-label product-service-prod-${{ github.run_id }}
+            --dns-name-label product-service-prod-${{ github.run_id }} \
              --ip-address Public
 
       - name: Confirm Production Deployment
