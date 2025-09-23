@@ -1,4 +1,4 @@
-name: CI Pipeline 
+name: CI Pipeline
 
 on:
   push:
@@ -12,7 +12,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Adjust this if backend is not Node.js
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -25,7 +24,6 @@ jobs:
       - name: Run tests
         run: npm test
         working-directory: ./backend
-    
 
       - name: Login to ACR
         uses: azure/docker-login@v1
@@ -34,12 +32,8 @@ jobs:
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
-      - name: Build Docker image
+      - name: Build and Push Docker image
         run: |
           IMAGE="${{ secrets.ACR_LOGIN_SERVER }}/sit722-app:${{ github.sha }}"
           docker build -t "$IMAGE" .
-
-      - name: Push Docker image
-        run: |
-          IMAGE="${{ secrets.ACR_LOGIN_SERVER }}/sit722-app:${{ github.sha }}"
           docker push "$IMAGE"
