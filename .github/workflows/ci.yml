@@ -101,7 +101,7 @@ jobs:
 
 
 
-#Stage 2: Deploy to Staging (ACI)
+Stage 2: Deploy to Staging (ACI)
 deploy-staging:
   needs: build-test-push   
   runs-on: ubuntu-latest
