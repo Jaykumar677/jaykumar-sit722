@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - testing
+      - main
 
 jobs:
   build-test-push:
@@ -111,6 +112,7 @@ jobs:
   deploy-staging:  
     needs: build-test-push   
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/testing'
 
     steps:
       - name: Azure Login
@@ -181,6 +183,7 @@ jobs:
   deploy-production:            
     needs: build-test-push  
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Azure Login
