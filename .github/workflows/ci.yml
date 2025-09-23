@@ -1,0 +1,45 @@
+name: CI Pipeline 
+
+on:
+  push:
+    branches: [ testing ]
+
+jobs:
+  build-test-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Adjust this if backend is not Node.js
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./backend
+
+      - name: Run tests
+        run: npm test
+        working-directory: ./backend
+    
+
+      - name: Login to ACR
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build Docker image
+        run: |
+          IMAGE="${{ secrets.ACR_LOGIN_SERVER }}/sit722-app:${{ github.sha }}"
+          docker build -t "$IMAGE" .
+
+      - name: Push Docker image
+        run: |
+          IMAGE="${{ secrets.ACR_LOGIN_SERVER }}/sit722-app:${{ github.sha }}"
+          docker push "$IMAGE"
