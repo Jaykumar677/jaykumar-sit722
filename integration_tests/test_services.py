@@ -23,13 +23,21 @@ def test_product_service():
     response = requests.get(url)
     assert response.status_code == 200
 
-def test_customer_crud():
+
+    def test_customer_crud():
     # Example: CRUD test on customer service
     create_url = f"{CUSTOMER_URL}/customers"
-    new_customer = {"name": "Test User", "email": "test@example.com"}
+    new_customer = {
+        "email": "test@example.com",
+        "first_name": "Test",
+        "last_name": "User",
+        "password": "secret1234",   # must be >= 8 chars
+        "phone_number": "1234567890",
+        "shipping_address": "123 Test Street"
+    }
     r = requests.post(create_url, json=new_customer)
     assert r.status_code == 200
-    customer_id = r.json().get("id")
+
 
     # Fetch created customer
     r = requests.get(f"{CUSTOMER_URL}/customers/{customer_id}")
