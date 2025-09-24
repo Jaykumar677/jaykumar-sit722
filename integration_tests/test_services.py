@@ -62,7 +62,7 @@ def test_customer_crud():
 
     # 4. Delete the customer
     r = requests.delete(f"{CUSTOMER_URL}/customers/{customer_id}")
-    assert r.status_code == 200, f"Delete failed: {r.text}"
+    assert r.status_code in [200, 204], f"Delete failed: {r.text}"
 
     # Confirm deletion
     r = requests.get(f"{CUSTOMER_URL}/customers/{customer_id}")
