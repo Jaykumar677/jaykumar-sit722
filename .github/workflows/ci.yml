@@ -310,11 +310,12 @@ jobs:
       
 
      # 🔹 NEW: Integration tests
+      - name: Checkout code
       - name: Install test dependencies
         run: pip install pytest requests
 
       - name: Run integration tests on staging
-        run: pytest ./integration_tests/test_services.py -v
+        run: pytest integration_tests/test_services.py -v
         env:
           RUN_ID: ${{ github.run_id }}
 
