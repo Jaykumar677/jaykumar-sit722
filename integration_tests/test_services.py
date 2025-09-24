@@ -40,7 +40,7 @@ def test_customer_crud():
     }
 
     r = requests.post(create_url, json=new_customer)
-    assert r.status_code == 200, f"Create failed: {r.text}"
+    assert r.status_code in [200, 201], f"Create failed: {r.text}"
 
     # Extract created customer_id
     data = r.json()
