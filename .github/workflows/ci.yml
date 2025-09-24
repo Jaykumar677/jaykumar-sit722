@@ -311,6 +311,8 @@ jobs:
 
      # 🔹 NEW: Integration tests
       - name: Checkout code
+        uses: actions/checkout@v3
+
       - name: Install test dependencies
         run: pip install pytest requests
 
@@ -326,6 +328,7 @@ jobs:
           az container delete --resource-group sit722-prod-rg --name order-service-staging --yes
           az container delete --resource-group sit722-prod-rg --name customer-service-staging --yes
           az container delete --resource-group sit722-prod-rg --name product-service-staging --yes
+
 
     
     
