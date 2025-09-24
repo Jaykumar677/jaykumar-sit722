@@ -5,6 +5,7 @@ on:
     branches:
       - testing
       - main
+      - feature/integration-tests
 
 jobs:
   build-test-push:
@@ -306,3 +307,25 @@ jobs:
           echo "Customer Service: http://customer-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000"
           echo "Product Service:  http://product-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000"
           echo "Frontend:  http://frontend-prod-${{ github.run_id }}.australiaeast.azurecontainer.io"
+      
+
+      # 🔹 NEW: Integration tests
+      - name: Install test dependencies
+        run: pip install pytest requests
+
+      - name: Run integration tests on staging
+        run: |
+          pytest integration_tests/test_services.py -v
+        env:
+          RUN_ID: ${{ github.run_id }}
+
+      # Tear down staging after tests
+      - name: Destroy staging environment
+        if: always()
+        run: |
+          az container delete --resource-group sit722-prod-rg --name order-service-staging --yes
+          az container delete --resource-group sit722-prod-rg --name customer-service-staging --yes
+          az container delete --resource-group sit722-prod-rg --name product-service-staging --yes
+      
+    
+    
