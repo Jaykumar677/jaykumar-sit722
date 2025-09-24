@@ -312,17 +312,13 @@ jobs:
       # 🔹 NEW: Integration tests
       - name: Install test dependencies
         run: pip install pytest requests
-      
-      - name: Run integration tests on staging
-        run: |
-        pytest integration_tests/ -v
-        working-directory: ${{ github.workspace }}
 
+      - name: Run integration tests on staging
+        working-directory: ${{ github.workspace }}
+        run: pytest integration_tests/ -v
         env:
           RUN_ID: ${{ github.run_id }}
 
-
-      
       # Tear down staging after tests
       - name: Destroy staging environment
         if: always()
@@ -330,6 +326,7 @@ jobs:
           az container delete --resource-group sit722-prod-rg --name order-service-staging --yes
           az container delete --resource-group sit722-prod-rg --name customer-service-staging --yes
           az container delete --resource-group sit722-prod-rg --name product-service-staging --yes
+
       
     
     
