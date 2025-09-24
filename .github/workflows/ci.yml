@@ -10,6 +10,7 @@ on:
 jobs:
   build-test-push:
     runs-on: ubuntu-latest
+
     services:
       postgres:
         image: postgres:14
@@ -34,13 +35,24 @@ jobs:
         with:
           python-version: '3.9'
 
+      - name: Wait for Postgres
+        run: |
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            echo "Waiting for Postgres..."
+            sleep 2
+          done
+
       - name: Create test databases
+        env:
+          PGPASSWORD: postgres
         run: |
           psql -h localhost -U postgres -c "CREATE DATABASE customers;"
           psql -h localhost -U postgres -c "CREATE DATABASE orders;"
-          psql -h localhost -U postgres -c "CREATE DATABASE products;"
-        env:
-          PGPASSWORD: postgres
+
+      - name: Install dependencies (customer_service)
+        run: pip install -r backend/customer_service/requirements.txt
+
+
 
       # Customer Service 
       - name: Install dependencies (customer_service)
