@@ -309,13 +309,12 @@ jobs:
           echo "Frontend:  http://frontend-prod-${{ github.run_id }}.australiaeast.azurecontainer.io"
       
 
-      # 🔹 NEW: Integration tests
+     # 🔹 NEW: Integration tests
       - name: Install test dependencies
         run: pip install pytest requests
 
       - name: Run integration tests on staging
-        working-directory: ${{ github.workspace }}
-        run: pytest integration_tests/ -v
+        run: pytest ./integration_tests/test_services.py -v
         env:
           RUN_ID: ${{ github.run_id }}
 
@@ -327,6 +326,5 @@ jobs:
           az container delete --resource-group sit722-prod-rg --name customer-service-staging --yes
           az container delete --resource-group sit722-prod-rg --name product-service-staging --yes
 
-      
     
     
