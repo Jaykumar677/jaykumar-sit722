@@ -47,6 +47,7 @@ jobs:
         run: |
           docker exec -e PGPASSWORD=postgres postgres psql -U postgres -c "CREATE DATABASE customers;"
           docker exec -e PGPASSWORD=postgres postgres psql -U postgres -c "CREATE DATABASE orders;"
+          docker exec -e PGPASSWORD=postgres postgres psql -U postgres -c "CREATE DATABASE products;"
 
       - name: Install dependencies (customer_service)
         run: pip install -r backend/customer_service/requirements.txt
