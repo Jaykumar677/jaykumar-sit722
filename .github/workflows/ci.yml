@@ -124,7 +124,10 @@ jobs:
             --image ${{ secrets.ACR_LOGIN_SERVER }}/order_service:latest \
             --cpu 1 --memory 1 \
             --ports 8000 \
-            --dns-name-label order-service-${{ github.run_id }}
+            --dns-name-label order-service-${{ github.run_id }} \
+            --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }}
 
       - name: Deploy Customer Service (staging)
         run: |
@@ -134,7 +137,10 @@ jobs:
             --image ${{ secrets.ACR_LOGIN_SERVER }}/customer_service:latest \
             --cpu 1 --memory 1 \
             --ports 8000 \
-            --dns-name-label customer-service-${{ github.run_id }}
+            --dns-name-label customer-service-${{ github.run_id }} \
+            --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }}
 
       - name: Deploy Product Service (staging)
         run: |
@@ -144,7 +150,10 @@ jobs:
             --image ${{ secrets.ACR_LOGIN_SERVER }}/product_service:latest \
             --cpu 1 --memory 1 \
             --ports 8000 \
-            --dns-name-label product-service-${{ github.run_id }}
+            --dns-name-label product-service-${{ github.run_id }} \
+            --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }}
 
       # ---- Integration tests ----
       - name: Checkout code
@@ -171,7 +180,7 @@ jobs:
   deploy-production:            
     needs: build-test-push  
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'   # only on main branch
+    if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Azure Login
@@ -223,7 +232,10 @@ jobs:
             --ports 8000 \
             --dns-name-label order-service-prod-${{ github.run_id }} \
             --ip-address Public \
-            --environment-variables DATABASE_URL=postgresql://postgres:postgres@postgres-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:5432/orders
+            --environment-variables DATABASE_URL=postgresql://postgres:postgres@postgres-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:5432/orders \
+            --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }}
 
       - name: Deploy Customer Service (prod)
         run: |
@@ -235,7 +247,10 @@ jobs:
             --ports 8000 \
             --dns-name-label customer-service-prod-${{ github.run_id }} \
             --ip-address Public \
-            --environment-variables DATABASE_URL=postgresql://postgres:postgres@postgres-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:5432/customers
+            --environment-variables DATABASE_URL=postgresql://postgres:postgres@postgres-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:5432/customers \
+            --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }}
 
       - name: Deploy Product Service (prod)
         run: |
@@ -247,7 +262,10 @@ jobs:
             --ports 8000 \
             --dns-name-label product-service-prod-${{ github.run_id }} \
             --ip-address Public \
-            --environment-variables DATABASE_URL=postgresql://postgres:postgres@postgres-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:5432/products
+            --environment-variables DATABASE_URL=postgresql://postgres:postgres@postgres-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:5432/products \
+            --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }}
 
       - name: Deploy Frontend (prod)
         run: |
@@ -262,7 +280,10 @@ jobs:
             --environment-variables \
               CUSTOMER_API=http://customer-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000 \
               ORDER_API=http://order-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000 \
-              PRODUCT_API=http://product-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000 
+              PRODUCT_API=http://product-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000 \
+            --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }}
 
       # ---- Integration tests (prod) ----
       - name: Checkout code
