@@ -1,12 +1,17 @@
 import os
 import requests
 
-RUN_ID = os.getenv("RUN_ID")
+# Prefer env vars from GitHub Actions (staging/prod URLs)
+CUSTOMER_URL = os.getenv("CUSTOMER_API")
+ORDER_URL = os.getenv("ORDER_API")
+PRODUCT_URL = os.getenv("PRODUCT_API")
 
-# Base URLs for services
-CUSTOMER_URL = f"http://customer-service-prod-{RUN_ID}.australiaeast.azurecontainer.io:8000"
-ORDER_URL = f"http://order-service-prod-{RUN_ID}.australiaeast.azurecontainer.io:8000"
-PRODUCT_URL = f"http://product-service-prod-{RUN_ID}.australiaeast.azurecontainer.io:8000"
+# Fallback (local dev) if env vars aren’t set
+if not CUSTOMER_URL or not ORDER_URL or not PRODUCT_URL:
+    RUN_ID = os.getenv("RUN_ID", "local")
+    CUSTOMER_URL = f"http://customer-service-prod-{RUN_ID}.australiaeast.azurecontainer.io:8000"
+    ORDER_URL = f"http://order-service-prod-{RUN_ID}.australiaeast.azurecontainer.io:8000"
+    PRODUCT_URL = f"http://product-service-prod-{RUN_ID}.australiaeast.azurecontainer.io:8000"
 
 
 def test_customer_service():
@@ -42,28 +47,23 @@ def test_customer_crud():
     r = requests.post(create_url, json=new_customer)
     assert r.status_code in [200, 201], f"Create failed: {r.text}"
 
-    # Extract created customer_id
     data = r.json()
     customer_id = data["customer_id"]
 
-    # 2. Read the created customer
+    # 2. Read
     r = requests.get(f"{CUSTOMER_URL}/customers/{customer_id}")
     assert r.status_code == 200, f"Read failed: {r.text}"
     assert r.json()["email"] == "test@example.com"
 
-    # 3. Update the customer
+    # 3. Update
     update_data = {"first_name": "Updated"}
     r = requests.put(f"{CUSTOMER_URL}/customers/{customer_id}", json=update_data)
     assert r.status_code == 200, f"Update failed: {r.text}"
-
-    # Confirm update worked
     r = requests.get(f"{CUSTOMER_URL}/customers/{customer_id}")
     assert r.json()["first_name"] == "Updated"
 
-    # 4. Delete the customer
+    # 4. Delete
     r = requests.delete(f"{CUSTOMER_URL}/customers/{customer_id}")
     assert r.status_code in [200, 204], f"Delete failed: {r.text}"
-
-    # Confirm deletion
     r = requests.get(f"{CUSTOMER_URL}/customers/{customer_id}")
     assert r.status_code == 404, f"Customer still exists after delete: {r.text}"
