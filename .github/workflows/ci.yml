@@ -26,47 +26,30 @@ jobs:
         with:
           python-version: '3.9'
 
-    services:
-      postgres:
-        image: docker.io/library/postgres:14
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: testdb
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U postgres"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
+      - name: Start Postgres container
+        run: |
+          docker run -d \
+            -e POSTGRES_USER=postgres \
+            -e POSTGRES_PASSWORD=postgres \
+            -e POSTGRES_DB=testdb \
+            -p 5432:5432 \
+            --name postgres \
+            postgres:14
 
       - name: Wait for Postgres
         run: |
-          until pg_isready -h localhost -p 5432 -U postgres; do
+          until docker exec postgres pg_isready -U postgres; do
             echo "Waiting for Postgres..."
             sleep 2
           done
 
       - name: Create test databases
-        env:
-          PGPASSWORD: postgres
         run: |
-          psql -h localhost -U postgres -c "CREATE DATABASE customers;"
-          psql -h localhost -U postgres -c "CREATE DATABASE orders;"
+          docker exec -e PGPASSWORD=postgres postgres psql -U postgres -c "CREATE DATABASE customers;"
+          docker exec -e PGPASSWORD=postgres postgres psql -U postgres -c "CREATE DATABASE orders;"
 
       - name: Install dependencies (customer_service)
         run: pip install -r backend/customer_service/requirements.txt
-
 
 
       # Customer Service 
