@@ -52,7 +52,6 @@ jobs:
       - name: Install dependencies (customer_service)
         run: pip install -r backend/customer_service/requirements.txt
 
-
       # Customer Service 
       - name: Install dependencies (customer_service)
         run: |
@@ -111,7 +110,6 @@ jobs:
           docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/product_service:latest -f backend/product_service/Dockerfile ./backend/product_service
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/product_service:latest
 
-            # Build and Push Docker image (frontend)
       - name: Build and Push Docker image (frontend)
         run: |
           az acr login --name jaykumaracr722
@@ -120,7 +118,7 @@ jobs:
 
 
 
-    # Stage 2: Deploy to Staging (ACI)
+  # Stage 2: Deploy to Staging (ACI)
   deploy-staging:  
     needs: build-test-push   
     runs-on: ubuntu-latest
@@ -174,6 +172,7 @@ jobs:
             --os-type Linux \
             --dns-name-label product-service-${{ github.run_id }}
 
+      # quick health check
       - name: Verify staging deployment
         run: |
           echo "Staging environment deployed. Access services at:"
@@ -181,7 +180,14 @@ jobs:
           echo "Customer Service: http://customer-service-${{ github.run_id }}.australiaeast.azurecontainer.io:8000"
           echo "Product Service: http://product-service-${{ github.run_id }}.australiaeast.azurecontainer.io:8000"
 
-      # ✅ Integration tests happen here before production
+
+
+  # Stage 2.5: Run Integration Tests on Staging
+  integration-tests:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+
+    steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
@@ -193,7 +199,6 @@ jobs:
         env:
           RUN_ID: ${{ github.run_id }}
 
-      # Tear down staging after tests
       - name: Destroy staging environment
         if: always()
         run: |
@@ -202,9 +207,10 @@ jobs:
           az container delete --resource-group sit722-prod-rg --name product-service-staging --yes
 
 
+
   # Stage 3: Deploy to Production (ACI)
   deploy-production:            
-    needs: deploy-staging  
+    needs: integration-tests  
     runs-on: ubuntu-latest
 
     steps:
@@ -300,6 +306,7 @@ jobs:
             --ip-address Public \
             --environment-variables DATABASE_URL=postgresql://postgres:postgres@postgres-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:5432/products
       
+
       # Deploy Frontend
       - name: Deploy Frontend to Production
         run: |
