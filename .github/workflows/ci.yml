@@ -58,8 +58,6 @@ jobs:
       - name: Install dependencies (customer_service)
         run: pip install -r backend/customer_service/requirements.txt
 
-
-
       # Customer Service 
       - name: Install dependencies (customer_service)
         run: |
