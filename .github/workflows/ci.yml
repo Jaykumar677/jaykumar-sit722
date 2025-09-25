@@ -8,7 +8,6 @@ on:
       - feature/integration-tests
 
 jobs:
-  # -------- STAGE 1: Build, Unit Tests, Push Images --------
   build-test-push:
     runs-on: ubuntu-latest
 
@@ -36,78 +35,85 @@ jobs:
             -p 5432:5432 \
             --name postgres \
             postgres:14
-
       - name: Wait for Postgres
         run: |
           until docker exec postgres pg_isready -U postgres; do
             echo "Waiting for Postgres..."
             sleep 2
           done
-
       - name: Create test databases
         run: |
           docker exec -e PGPASSWORD=postgres postgres psql -U postgres -c "CREATE DATABASE customers;"
           docker exec -e PGPASSWORD=postgres postgres psql -U postgres -c "CREATE DATABASE orders;"
           docker exec -e PGPASSWORD=postgres postgres psql -U postgres -c "CREATE DATABASE products;"
+      - name: Install dependencies (customer_service)
+        run: pip install -r backend/customer_service/requirements.txt
 
-      # ---- Run unit tests ----
-      - name: Run unit tests (customer_service)
+
+      # Customer Service 
+      - name: Install dependencies (customer_service)
         run: |
           cd backend/customer_service
           pip install -r requirements.txt
           pip install pytest httpx
+      - name: Run tests (customer_service)
+        run: |
+          cd backend/customer_service
           pytest -v
-
-      - name: Run unit tests (order_service)
+      # Order Service 
+      - name: Install dependencies (order_service)
         run: |
           cd backend/order_service
           pip install -r requirements.txt
           pip install pytest httpx
+      - name: Run tests (order_service)
+        run: |
+          cd backend/order_service
           pytest -v
-
-      - name: Run unit tests (product_service)
+      # Product Service 
+      - name: Install dependencies (product_service)
         run: |
           cd backend/product_service
           pip install -r requirements.txt
           pip install pytest httpx
+      - name: Run tests (product_service)
+        run: |
+          cd backend/product_service
           pytest -v
-
-      # ---- Build & Push images ----
+      # Azure Login 
       - name: Azure Login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Build and Push Order Service
+      # Build & Push Docker 
+      - name: Build and Push Docker image (order_service)
         run: |
           az acr login --name jaykumaracr722
           docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/order_service:latest -f backend/order_service/Dockerfile ./backend/order_service
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/order_service:latest
-
-      - name: Build and Push Customer Service
+      - name: Build and Push Docker image (customer_service)
         run: |
           az acr login --name jaykumaracr722
           docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/customer_service:latest -f backend/customer_service/Dockerfile ./backend/customer_service
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/customer_service:latest
-
-      - name: Build and Push Product Service
+      - name: Build and Push Docker image (product_service)
         run: |
           az acr login --name jaykumaracr722
           docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/product_service:latest -f backend/product_service/Dockerfile ./backend/product_service
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/product_service:latest
-
-      - name: Build and Push Frontend
+            # Build and Push Docker image (frontend)
+      - name: Build and Push Docker image (frontend)
         run: |
           az acr login --name jaykumaracr722
           docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/frontend:latest -f frontend/Dockerfile ./frontend
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/frontend:latest
-
-
-  # -------- STAGE 2: Deploy to Staging --------
+  # Stage 2: Deploy to Staging (ACI)
   deploy-staging:  
     needs: build-test-push   
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/integration-tests'
+
 
     steps:
       - name: Azure Login
@@ -115,75 +121,63 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Deploy services
-      - name: Deploy Order Service (staging)
+      - name: Deploy Order Service to Staging
         run: |
           az container create \
             --resource-group sit722-prod-rg \
             --name order-service-staging \
             --image ${{ secrets.ACR_LOGIN_SERVER }}/order_service:latest \
             --cpu 1 --memory 1 \
-            --ports 8000 \
-            --dns-name-label order-service-${{ github.run_id }} \
-            --os-type Linux \
             --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
             --registry-username ${{ secrets.ACR_USERNAME }} \
-            --registry-password ${{ secrets.ACR_PASSWORD }}
-
-      - name: Deploy Customer Service (staging)
+            --registry-password ${{ secrets.ACR_PASSWORD }} \
+            --ports 8000 \
+            --os-type Linux \
+            --dns-name-label order-service-${{ github.run_id }}
+      - name: Deploy Customer Service to Staging
         run: |
           az container create \
             --resource-group sit722-prod-rg \
             --name customer-service-staging \
             --image ${{ secrets.ACR_LOGIN_SERVER }}/customer_service:latest \
             --cpu 1 --memory 1 \
-            --ports 8000 \
-            --dns-name-label customer-service-${{ github.run_id }} \
-            --os-type Linux \
             --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
             --registry-username ${{ secrets.ACR_USERNAME }} \
-            --registry-password ${{ secrets.ACR_PASSWORD }}
-
-      - name: Deploy Product Service (staging)
+            --registry-password ${{ secrets.ACR_PASSWORD }} \
+            --ports 8000 \
+            --os-type Linux \
+            --dns-name-label customer-service-${{ github.run_id }}
+      - name: Deploy Product Service to Staging
         run: |
           az container create \
             --resource-group sit722-prod-rg \
             --name product-service-staging \
             --image ${{ secrets.ACR_LOGIN_SERVER }}/product_service:latest \
             --cpu 1 --memory 1 \
-            --ports 8000 \
-            --dns-name-label product-service-${{ github.run_id }} \
-            --os-type Linux \
             --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
             --registry-username ${{ secrets.ACR_USERNAME }} \
-            --registry-password ${{ secrets.ACR_PASSWORD }}
-
-      # ---- Integration tests ----
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Install test dependencies
-        run: pip install pytest requests
-
-      - name: Run integration tests (staging)
-        run: pytest integration_tests/test_services.py -v
-        env:
-          RUN_ID: ${{ github.run_id }}
-
-      # ---- Tear down ----
+            --registry-password ${{ secrets.ACR_PASSWORD }} \
+            --ports 8000 \
+            --os-type Linux \
+            --dns-name-label product-service-${{ github.run_id }}
+      # quick health check
+      - name: Verify staging deployment
+        run: |
+          echo "Staging environment deployed. Access services at:"
+          echo "Order Service: http://order-service-${{ github.run_id }}.australiaeast.azurecontainer.io:8000"
+          echo "Customer Service: http://customer-service-${{ github.run_id }}.australiaeast.azurecontainer.io:8000"
+          echo "Product Service: http://product-service-${{ github.run_id }}.australiaeast.azurecontainer.io:8000"
+      # Tear down staging after tests
       - name: Destroy staging environment
         if: always()
         run: |
           az container delete --resource-group sit722-prod-rg --name order-service-staging --yes
           az container delete --resource-group sit722-prod-rg --name customer-service-staging --yes
           az container delete --resource-group sit722-prod-rg --name product-service-staging --yes
-
-
-  # -------- STAGE 3: Deploy to Production --------
+  # Stage 3: Deploy to Production (ACI)
   deploy-production:            
     needs: build-test-push  
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/integration-tests'
 
     steps:
       - name: Azure Login
@@ -191,7 +185,7 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Deploy PostgreSQL (production)
+      # Deploy PostgreSQL (shared instance, multiple DBs)
       - name: Deploy PostgreSQL to Production
         run: |
           az container create \
@@ -200,11 +194,11 @@ jobs:
             --image postgres:14 \
             --cpu 1 --memory 1 \
             --ports 5432 \
-            --dns-name-label postgres-prod-${{ github.run_id }} \
             --os-type Linux \
+            --dns-name-label postgres-prod-${{ github.run_id }} \
             --environment-variables POSTGRES_USER=postgres POSTGRES_PASSWORD=postgres POSTGRES_DB=postgres \
             --ip-address Public
-
+      # Wait until Postgres is ready
       - name: Wait for PostgreSQL
         run: |
           for i in {1..15}; do
@@ -213,10 +207,10 @@ jobs:
               echo "Postgres is ready!"
               break
             fi
-            echo "Waiting for Postgres..."
+            echo "⏳ Waiting for Postgres..."
             sleep 5
           done
-
+      # Create the three databases
       - name: Create Databases
         run: |
           PGHOST=$(az container show --resource-group sit722-prod-rg --name postgres-prod --query ipAddress.ip --output tsv)
@@ -224,93 +218,100 @@ jobs:
           psql -h $PGHOST -U postgres -d postgres -c "CREATE DATABASE customers;"
           psql -h $PGHOST -U postgres -d postgres -c "CREATE DATABASE orders;"
           psql -h $PGHOST -U postgres -d postgres -c "CREATE DATABASE products;"
-
-      # Deploy services
-      - name: Deploy Order Service (prod)
+      # Deploy Order Service
+      - name: Deploy Order Service to Production
         run: |
           az container create \
             --resource-group sit722-prod-rg \
             --name order-service-prod \
             --image ${{ secrets.ACR_LOGIN_SERVER }}/order_service:latest \
             --cpu 1 --memory 1 \
-            --ports 8000 \
-            --dns-name-label order-service-prod-${{ github.run_id }} \
-            --os-type Linux \
-            --ip-address Public \
-            --environment-variables DATABASE_URL=postgresql://postgres:postgres@postgres-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:5432/orders \
             --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
             --registry-username ${{ secrets.ACR_USERNAME }} \
-            --registry-password ${{ secrets.ACR_PASSWORD }}
-
-      - name: Deploy Customer Service (prod)
+            --registry-password ${{ secrets.ACR_PASSWORD }} \
+            --ports 8000 \
+            --os-type Linux \
+            --dns-name-label order-service-prod-${{ github.run_id }} \
+            --ip-address Public \
+            --environment-variables DATABASE_URL=postgresql://postgres:postgres@postgres-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:5432/orders
+      # Deploy Customer Service
+      - name: Deploy Customer Service to Production
         run: |
           az container create \
             --resource-group sit722-prod-rg \
             --name customer-service-prod \
             --image ${{ secrets.ACR_LOGIN_SERVER }}/customer_service:latest \
             --cpu 1 --memory 1 \
-            --ports 8000 \
-            --dns-name-label customer-service-prod-${{ github.run_id }} \
-            --os-type Linux \
-            --ip-address Public \
-            --environment-variables DATABASE_URL=postgresql://postgres:postgres@postgres-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:5432/customers \
             --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
             --registry-username ${{ secrets.ACR_USERNAME }} \
-            --registry-password ${{ secrets.ACR_PASSWORD }}
-
-      - name: Deploy Product Service (prod)
+            --registry-password ${{ secrets.ACR_PASSWORD }} \
+            --ports 8000 \
+            --os-type Linux \
+            --dns-name-label customer-service-prod-${{ github.run_id }} \
+            --ip-address Public \
+            --environment-variables DATABASE_URL=postgresql://postgres:postgres@postgres-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:5432/customers
+      # Deploy Product Service
+      - name: Deploy Product Service to Production
         run: |
           az container create \
             --resource-group sit722-prod-rg \
             --name product-service-prod \
             --image ${{ secrets.ACR_LOGIN_SERVER }}/product_service:latest \
             --cpu 1 --memory 1 \
-            --ports 8000 \
-            --dns-name-label product-service-prod-${{ github.run_id }} \
-            --os-type Linux \
-            --ip-address Public \
-            --environment-variables DATABASE_URL=postgresql://postgres:postgres@postgres-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:5432/products \
             --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
             --registry-username ${{ secrets.ACR_USERNAME }} \
-            --registry-password ${{ secrets.ACR_PASSWORD }}
+            --registry-password ${{ secrets.ACR_PASSWORD }} \
+            --ports 8000 \
+            --os-type Linux \
+            --dns-name-label product-service-prod-${{ github.run_id }} \
+            --ip-address Public \
+            --environment-variables DATABASE_URL=postgresql://postgres:postgres@postgres-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:5432/products
+      
 
-      - name: Deploy Frontend (prod)
+      # Deploy Frontend
+      - name: Deploy Frontend to Production
         run: |
           az container create \
             --resource-group sit722-prod-rg \
             --name frontend-prod \
             --image ${{ secrets.ACR_LOGIN_SERVER }}/frontend:latest \
             --cpu 1 --memory 1 \
+            --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }} \
             --ports 80 \
-            --dns-name-label frontend-prod-${{ github.run_id }} \
             --os-type Linux \
+            --dns-name-label frontend-prod-${{ github.run_id }} \
             --ip-address Public \
             --environment-variables \
               CUSTOMER_API=http://customer-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000 \
               ORDER_API=http://order-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000 \
-              PRODUCT_API=http://product-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000 \
-            --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
-            --registry-username ${{ secrets.ACR_USERNAME }} \
-            --registry-password ${{ secrets.ACR_PASSWORD }}
+              PRODUCT_API=http://product-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000 
+      - name: Confirm Production Deployment
+        run: |
+          echo "Production deployment complete. Access your services at:"
+          echo "Order Service:    http://order-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000"
+          echo "Customer Service: http://customer-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000"
+          echo "Product Service:  http://product-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000"
+          echo "Frontend:  http://frontend-prod-${{ github.run_id }}.australiaeast.azurecontainer.io"
+      
 
-      # ---- Integration tests (prod) ----
+     # 🔹 NEW: Integration tests
       - name: Checkout code
         uses: actions/checkout@v3
 
       - name: Install test dependencies
         run: pip install pytest requests
 
-      - name: Run integration tests (production)
+      - name: Run integration tests on staging
         run: pytest integration_tests/test_services.py -v
         env:
-          CUSTOMER_URL: http://customer-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000
-          ORDER_URL: http://order-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000
-          PRODUCT_URL: http://product-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000
+          RUN_ID: ${{ github.run_id }}
 
-      - name: Confirm Production Deployment
+      # Tear down staging after tests
+      - name: Destroy staging environment
+        if: always()
         run: |
-          echo "✅ Production deployed:"
-          echo "Order Service:    http://order-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000"
-          echo "Customer Service: http://customer-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000"
-          echo "Product Service:  http://product-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000"
-          echo "Frontend:         http://frontend-prod-${{ github.run_id }}.australiaeast.azurecontainer.io"
+          az container delete --resource-group sit722-prod-rg --name order-service-staging --yes
+          az container delete --resource-group sit722-prod-rg --name customer-service-staging --yes
+          az container delete --resource-group sit722-prod-rg --name product-service-staging --yes
