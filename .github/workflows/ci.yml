@@ -183,11 +183,15 @@ jobs:
 
 
   # Stage 2.5: Run Integration Tests on Staging
-  integration-tests:
+  integration-tests:   
     needs: deploy-staging
     runs-on: ubuntu-latest
-
     steps:
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
       - name: Checkout code
         uses: actions/checkout@v3
 
@@ -197,7 +201,9 @@ jobs:
       - name: Run integration tests on staging
         run: pytest integration_tests/test_services.py -v
         env:
-          RUN_ID: ${{ github.run_id }}
+          CUSTOMER_API: http://customer-service-staging-${{ github.run_id }}.australiaeast.azurecontainer.io:8000
+          ORDER_API: http://order-service-staging-${{ github.run_id }}.australiaeast.azurecontainer.io:8000
+          PRODUCT_API: http://product-service-staging-${{ github.run_id }}.australiaeast.azurecontainer.io:8000
 
       - name: Destroy staging environment
         if: always()
@@ -242,7 +248,7 @@ jobs:
               echo "Postgres is ready!"
               break
             fi
-            echo "⏳ Waiting for Postgres..."
+            echo " Waiting for Postgres..."
             sleep 5
           done
 
