@@ -15,7 +15,6 @@ if not CUSTOMER_URL or not ORDER_URL or not PRODUCT_URL:
 
 # --- Utility: wait until service is live ---
 def wait_for_service(url, retries=60, delay=5):
-    """Wait up to 5 minutes for the service to be healthy"""
     for i in range(retries):
         try:
             r = requests.get(f"{url}/health", timeout=5)
@@ -23,7 +22,7 @@ def wait_for_service(url, retries=60, delay=5):
                 print(f"✅ {url} is healthy")
                 return
         except Exception as e:
-            print(f"⏳ Waiting for {url} (attempt {i+1}/{retries}): {e}")
+            print(f"⏳ Waiting for {url} ({e}) [{i+1}/{retries}]")
         time.sleep(delay)
     raise RuntimeError(f"❌ Service at {url} not responding after {retries*delay}s")
 
