@@ -11,21 +11,24 @@ jobs:
   build-test-push:
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: read
-      packages: write
-
     steps:
-      # 🔑 Login to DockerHub FIRST (before services)
       - name: Login to DockerHub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
     services:
       postgres:
-        image: postgres:14
+        image: docker.io/library/postgres:14
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
