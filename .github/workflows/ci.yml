@@ -209,10 +209,21 @@ jobs:
       - name: Install test dependencies
         run: pip install pytest requests
 
-      - name: Run integration tests (staging)
-        run: pytest integration_tests/test_services.py -v
-        env:
-          RUN_ID: ${{ github.run_id }}
+      - name: Run integration tests (staging with IPs)
+        run: |
+          CUSTOMER_IP=$(az container show --resource-group sit722-prod-rg --name customer-service-staging --query ipAddress.ip --output tsv)
+          ORDER_IP=$(az container show --resource-group sit722-prod-rg --name order-service-staging --query ipAddress.ip --output tsv)
+          PRODUCT_IP=$(az container show --resource-group sit722-prod-rg --name product-service-staging --query ipAddress.ip --output tsv)
+
+          echo "Using CUSTOMER_URL=http://$CUSTOMER_IP:8000"
+          echo "Using ORDER_URL=http://$ORDER_IP:8000"
+          echo "Using PRODUCT_URL=http://$PRODUCT_IP:8000"
+
+          CUSTOMER_URL=http://$CUSTOMER_IP:8000 \
+          ORDER_URL=http://$ORDER_IP:8000 \
+          PRODUCT_URL=http://$PRODUCT_IP:8000 \
+          pytest integration_tests/test_services.py -v
+
 
       # Tear down staging
       - name: Destroy staging environment
