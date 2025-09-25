@@ -125,6 +125,7 @@ jobs:
             --cpu 1 --memory 1 \
             --ports 8000 \
             --dns-name-label order-service-${{ github.run_id }} \
+            --os-type Linux \
             --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
             --registry-username ${{ secrets.ACR_USERNAME }} \
             --registry-password ${{ secrets.ACR_PASSWORD }}
@@ -138,6 +139,7 @@ jobs:
             --cpu 1 --memory 1 \
             --ports 8000 \
             --dns-name-label customer-service-${{ github.run_id }} \
+            --os-type Linux \
             --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
             --registry-username ${{ secrets.ACR_USERNAME }} \
             --registry-password ${{ secrets.ACR_PASSWORD }}
@@ -151,6 +153,7 @@ jobs:
             --cpu 1 --memory 1 \
             --ports 8000 \
             --dns-name-label product-service-${{ github.run_id }} \
+            --os-type Linux \
             --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
             --registry-username ${{ secrets.ACR_USERNAME }} \
             --registry-password ${{ secrets.ACR_PASSWORD }}
@@ -180,7 +183,7 @@ jobs:
   deploy-production:            
     needs: build-test-push  
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/integration-tests'
 
     steps:
       - name: Azure Login
@@ -198,6 +201,7 @@ jobs:
             --cpu 1 --memory 1 \
             --ports 5432 \
             --dns-name-label postgres-prod-${{ github.run_id }} \
+            --os-type Linux \
             --environment-variables POSTGRES_USER=postgres POSTGRES_PASSWORD=postgres POSTGRES_DB=postgres \
             --ip-address Public
 
@@ -231,6 +235,7 @@ jobs:
             --cpu 1 --memory 1 \
             --ports 8000 \
             --dns-name-label order-service-prod-${{ github.run_id }} \
+            --os-type Linux \
             --ip-address Public \
             --environment-variables DATABASE_URL=postgresql://postgres:postgres@postgres-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:5432/orders \
             --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
@@ -246,6 +251,7 @@ jobs:
             --cpu 1 --memory 1 \
             --ports 8000 \
             --dns-name-label customer-service-prod-${{ github.run_id }} \
+            --os-type Linux \
             --ip-address Public \
             --environment-variables DATABASE_URL=postgresql://postgres:postgres@postgres-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:5432/customers \
             --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
@@ -261,6 +267,7 @@ jobs:
             --cpu 1 --memory 1 \
             --ports 8000 \
             --dns-name-label product-service-prod-${{ github.run_id }} \
+            --os-type Linux \
             --ip-address Public \
             --environment-variables DATABASE_URL=postgresql://postgres:postgres@postgres-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:5432/products \
             --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
@@ -276,6 +283,7 @@ jobs:
             --cpu 1 --memory 1 \
             --ports 80 \
             --dns-name-label frontend-prod-${{ github.run_id }} \
+            --os-type Linux \
             --ip-address Public \
             --environment-variables \
               CUSTOMER_API=http://customer-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000 \
