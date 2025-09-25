@@ -216,16 +216,17 @@ jobs:
             done
           done
         env:
-          CUSTOMER_API: http://customer-service-staging-${{ github.run_id }}.australiaeast.azurecontainer.io:8000
-          ORDER_API: http://order-service-staging-${{ github.run_id }}.australiaeast.azurecontainer.io:8000
-          PRODUCT_API: http://product-service-staging-${{ github.run_id }}.australiaeast.azurecontainer.io:8000
+         CUSTOMER_API: http://customer-service-staging.australiaeast.azurecontainer.io:8000
+         ORDER_API: http://order-service-staging.australiaeast.azurecontainer.io:8000
+         PRODUCT_API: http://product-service-staging.australiaeast.azurecontainer.io:8000
 
       - name: Run integration tests on staging
         run: pytest integration_tests/test_services.py -v
         env:
-          CUSTOMER_API: http://customer-service-staging-${{ github.run_id }}.australiaeast.azurecontainer.io:8000
-          ORDER_API: http://order-service-staging-${{ github.run_id }}.australiaeast.azurecontainer.io:8000
-          PRODUCT_API: http://product-service-staging-${{ github.run_id }}.australiaeast.azurecontainer.io:8000
+         CUSTOMER_API: http://customer-service-staging.australiaeast.azurecontainer.io:8000
+         ORDER_API: http://order-service-staging.australiaeast.azurecontainer.io:8000
+         PRODUCT_API: http://product-service-staging.australiaeast.azurecontainer.io:8000
+
 
       - name: Destroy staging environment
         if: always()
