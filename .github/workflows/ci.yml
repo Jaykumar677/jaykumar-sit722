@@ -102,7 +102,6 @@ jobs:
           docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/frontend:latest -f frontend/Dockerfile ./frontend
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/frontend:latest
 
-
   # -------- STAGE 2: Deploy to Staging --------
   deploy-staging:  
     needs: build-test-push   
@@ -149,7 +148,7 @@ jobs:
           psql -h $PGHOST -U postgres -d postgres -c "CREATE DATABASE orders;"
           psql -h $PGHOST -U postgres -d postgres -c "CREATE DATABASE products;"
 
-      # Deploy services (staging)
+      # Deploy Order Service to Staging
       - name: Deploy Order Service (staging)
         run: |
           PGHOST=$(az container show --resource-group sit722-prod-rg --name postgres-staging --query ipAddress.ip --output tsv)
@@ -162,8 +161,12 @@ jobs:
             --os-type Linux \
             --dns-name-label order-service-${{ github.run_id }} \
             --environment-variables DATABASE_URL=postgresql://postgres:postgres@$PGHOST:5432/orders \
-            --ip-address Public
+            --ip-address Public \
+            --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }}
 
+      # Deploy Customer Service to Staging
       - name: Deploy Customer Service (staging)
         run: |
           PGHOST=$(az container show --resource-group sit722-prod-rg --name postgres-staging --query ipAddress.ip --output tsv)
@@ -176,8 +179,12 @@ jobs:
             --os-type Linux \
             --dns-name-label customer-service-${{ github.run_id }} \
             --environment-variables DATABASE_URL=postgresql://postgres:postgres@$PGHOST:5432/customers \
-            --ip-address Public
+            --ip-address Public \
+            --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }}
 
+      # Deploy Product Service to Staging
       - name: Deploy Product Service (staging)
         run: |
           PGHOST=$(az container show --resource-group sit722-prod-rg --name postgres-staging --query ipAddress.ip --output tsv)
@@ -190,9 +197,12 @@ jobs:
             --os-type Linux \
             --dns-name-label product-service-${{ github.run_id }} \
             --environment-variables DATABASE_URL=postgresql://postgres:postgres@$PGHOST:5432/products \
-            --ip-address Public
+            --ip-address Public \
+            --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }}
 
-      # Run integration tests (staging)
+      # Run integration tests
       - name: Checkout code
         uses: actions/checkout@v3
 
@@ -213,12 +223,10 @@ jobs:
           az container delete --resource-group sit722-prod-rg --name customer-service-staging --yes
           az container delete --resource-group sit722-prod-rg --name product-service-staging --yes
 
-
   # -------- STAGE 3: Deploy to Production --------
   deploy-production:            
     needs: build-test-push  
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Azure Login
@@ -226,7 +234,7 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Deploy PostgreSQL (production)
+      # Deploy PostgreSQL (shared instance, multiple DBs)
       - name: Deploy PostgreSQL to Production
         run: |
           az container create \
@@ -240,7 +248,7 @@ jobs:
             --environment-variables POSTGRES_USER=postgres POSTGRES_PASSWORD=postgres POSTGRES_DB=postgres \
             --ip-address Public
 
-      - name: Wait for PostgreSQL (prod)
+      - name: Wait for PostgreSQL
         run: |
           for i in {1..15}; do
             PGHOST=$(az container show --resource-group sit722-prod-rg --name postgres-prod --query ipAddress.ip --output tsv)
@@ -252,7 +260,7 @@ jobs:
             sleep 5
           done
 
-      - name: Create Databases (prod)
+      - name: Create Databases
         run: |
           PGHOST=$(az container show --resource-group sit722-prod-rg --name postgres-prod --query ipAddress.ip --output tsv)
           export PGPASSWORD=postgres
@@ -260,8 +268,8 @@ jobs:
           psql -h $PGHOST -U postgres -d postgres -c "CREATE DATABASE orders;"
           psql -h $PGHOST -U postgres -d postgres -c "CREATE DATABASE products;"
 
-      # Deploy services (prod)
-      - name: Deploy Order Service (prod)
+      # Deploy Order Service
+      - name: Deploy Order Service to Production
         run: |
           az container create \
             --resource-group sit722-prod-rg \
@@ -272,9 +280,13 @@ jobs:
             --os-type Linux \
             --dns-name-label order-service-prod-${{ github.run_id }} \
             --ip-address Public \
-            --environment-variables DATABASE_URL=postgresql://postgres:postgres@postgres-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:5432/orders
+            --environment-variables DATABASE_URL=postgresql://postgres:postgres@postgres-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:5432/orders \
+            --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }}
 
-      - name: Deploy Customer Service (prod)
+      # Deploy Customer Service
+      - name: Deploy Customer Service to Production
         run: |
           az container create \
             --resource-group sit722-prod-rg \
@@ -285,9 +297,13 @@ jobs:
             --os-type Linux \
             --dns-name-label customer-service-prod-${{ github.run_id }} \
             --ip-address Public \
-            --environment-variables DATABASE_URL=postgresql://postgres:postgres@postgres-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:5432/customers
+            --environment-variables DATABASE_URL=postgresql://postgres:postgres@postgres-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:5432/customers \
+            --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }}
 
-      - name: Deploy Product Service (prod)
+      # Deploy Product Service
+      - name: Deploy Product Service to Production
         run: |
           az container create \
             --resource-group sit722-prod-rg \
@@ -298,9 +314,13 @@ jobs:
             --os-type Linux \
             --dns-name-label product-service-prod-${{ github.run_id }} \
             --ip-address Public \
-            --environment-variables DATABASE_URL=postgresql://postgres:postgres@postgres-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:5432/products
+            --environment-variables DATABASE_URL=postgresql://postgres:postgres@postgres-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:5432/products \
+            --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }}
 
-      - name: Deploy Frontend (prod)
+      # Deploy Frontend
+      - name: Deploy Frontend to Production
         run: |
           az container create \
             --resource-group sit722-prod-rg \
@@ -314,9 +334,20 @@ jobs:
             --environment-variables \
               CUSTOMER_API=http://customer-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000 \
               ORDER_API=http://order-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000 \
-              PRODUCT_API=http://product-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000 
+              PRODUCT_API=http://product-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000 \
+            --registry-login-server ${{ secrets.ACR_LOGIN_SERVER }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }}
 
-      # Run integration tests (prod)
+      - name: Confirm Production Deployment
+        run: |
+          echo "Production deployment complete. Access your services at:"
+          echo "Order Service:    http://order-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000"
+          echo "Customer Service: http://customer-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000"
+          echo "Product Service:  http://product-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000"
+          echo "Frontend:  http://frontend-prod-${{ github.run_id }}.australiaeast.azurecontainer.io"
+
+      # Integration tests
       - name: Checkout code
         uses: actions/checkout@v3
 
@@ -329,11 +360,3 @@ jobs:
           CUSTOMER_URL: http://customer-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000
           ORDER_URL: http://order-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000
           PRODUCT_URL: http://product-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000
-
-      - name: Confirm Production Deployment
-        run: |
-          echo "✅ Production deployed:"
-          echo "Order Service:    http://order-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000"
-          echo "Customer Service: http://customer-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000"
-          echo "Product Service:  http://product-service-prod-${{ github.run_id }}.australiaeast.azurecontainer.io:8000"
-          echo "Frontend:         http://frontend-prod-${{ github.run_id }}.australiaeast.azurecontainer.io"
