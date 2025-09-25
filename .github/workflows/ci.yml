@@ -8,9 +8,9 @@ on:
       - feature/integration-tests
 
 jobs:
-  # Stage 1: Build & Unit Tests
   build-test-push:
     runs-on: ubuntu-latest
+
     steps:
       - name: Login to DockerHub
         uses: docker/login-action@v2
@@ -49,7 +49,10 @@ jobs:
           docker exec -e PGPASSWORD=postgres postgres psql -U postgres -c "CREATE DATABASE orders;"
           docker exec -e PGPASSWORD=postgres postgres psql -U postgres -c "CREATE DATABASE products;"
 
-      # Customer Service Tests
+      - name: Install dependencies (customer_service)
+        run: pip install -r backend/customer_service/requirements.txt
+
+      # Customer Service
       - name: Install dependencies (customer_service)
         run: |
           cd backend/customer_service
@@ -60,7 +63,7 @@ jobs:
           cd backend/customer_service
           pytest -v
 
-      # Order Service Tests
+      # Order Service
       - name: Install dependencies (order_service)
         run: |
           cd backend/order_service
@@ -71,7 +74,7 @@ jobs:
           cd backend/order_service
           pytest -v
 
-      # Product Service Tests
+      # Product Service
       - name: Install dependencies (product_service)
         run: |
           cd backend/product_service
@@ -88,7 +91,7 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Build & Push Docker Images
+      # Build & Push Docker
       - name: Build and Push Docker image (order_service)
         run: |
           az acr login --name jaykumaracr722
@@ -114,11 +117,13 @@ jobs:
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/frontend:latest
 
 
-  # Stage 2: Deploy to Staging
+
+  # Stage 2: Deploy to Staging (ACI)
   deploy-staging:
     needs: build-test-push
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/integration-tests'
+
     steps:
       - name: Azure Login
         uses: azure/login@v1
@@ -175,7 +180,8 @@ jobs:
           echo "Product Service: http://product-service-${{ github.run_id }}.australiaeast.azurecontainer.io:8000"
 
 
-  # Stage 2.5: Run Integration Tests
+
+  # Stage 2.5: Run Integration Tests on Staging
   integration-tests:
     needs: deploy-staging
     runs-on: ubuntu-latest
@@ -191,12 +197,35 @@ jobs:
       - name: Install test dependencies
         run: pip install pytest requests
 
+      # 🔹 NEW Wait until services are healthy
+      - name: Wait for services to be ready
+        run: |
+          for url in \
+            $CUSTOMER_API/health \
+            $ORDER_API/health \
+            $PRODUCT_API/health
+          do
+            echo "Checking $url ..."
+            for i in {1..15}; do
+              if curl -sSf $url > /dev/null; then
+                echo "$url is ready ✅"
+                break
+              fi
+              echo "⏳ Waiting for $url ..."
+              sleep 10
+            done
+          done
+        env:
+          CUSTOMER_API: http://customer-service-staging-${{ github.run_id }}.australiaeast.azurecontainer.io:8000
+          ORDER_API: http://order-service-staging-${{ github.run_id }}.australiaeast.azurecontainer.io:8000
+          PRODUCT_API: http://product-service-staging-${{ github.run_id }}.australiaeast.azurecontainer.io:8000
+
       - name: Run integration tests on staging
         run: pytest integration_tests/test_services.py -v
         env:
-          CUSTOMER_API: http://customer-service-${{ github.run_id }}.australiaeast.azurecontainer.io:8000
-          ORDER_API: http://order-service-${{ github.run_id }}.australiaeast.azurecontainer.io:8000
-          PRODUCT_API: http://product-service-${{ github.run_id }}.australiaeast.azurecontainer.io:8000
+          CUSTOMER_API: http://customer-service-staging-${{ github.run_id }}.australiaeast.azurecontainer.io:8000
+          ORDER_API: http://order-service-staging-${{ github.run_id }}.australiaeast.azurecontainer.io:8000
+          PRODUCT_API: http://product-service-staging-${{ github.run_id }}.australiaeast.azurecontainer.io:8000
 
       - name: Destroy staging environment
         if: always()
@@ -206,16 +235,19 @@ jobs:
           az container delete --resource-group sit722-prod-rg --name product-service-staging --yes
 
 
-  # Stage 3: Deploy to Production
+
+  # Stage 3: Deploy to Production (ACI)
   deploy-production:
     needs: integration-tests
     runs-on: ubuntu-latest
+
     steps:
       - name: Azure Login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      # Deploy PostgreSQL (shared instance, multiple DBs)
       - name: Deploy PostgreSQL to Production
         run: |
           az container create \
@@ -237,7 +269,7 @@ jobs:
               echo "Postgres is ready!"
               break
             fi
-            echo "Waiting for Postgres..."
+            echo "⏳ Waiting for Postgres..."
             sleep 5
           done
 
